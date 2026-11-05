@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Smart Parking System</title>
+  <meta name="description" content="A clean, responsive Smart Parking System web application based on C logic for desktop and mobile." />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  
+  <!-- Phosphor Icons for crisp modern icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+            },
+            dark: {
+              bg: '#0f172a',
+              card: '#1e293b',
+              border: '#334155',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Title -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold text-xl">
+          <i class="ph-bold ph-car-profile"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">SMART PARKING</h1>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">LIVE</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Automated Slot Allocation &amp; Real-time Billing</p>
+        </div>
+      </div>
+
+      <!-- Live Clock & Quick Rate Badge -->
+      <div class="flex items-center gap-2 sm:gap-4">
+        <!-- Rate Display (Rs. 20 / hour from C code RATE) -->
+        <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs text-slate-300">
+          <i class="ph-bold ph-currency-inr text-emerald-400"></i>
+          <span class="font-medium">Rate:</span>
+          <span class="font-bold text-emerald-400" id="currentRateDisplay">₹20 / hr</span>
+        </div>
+
+        <!-- Live Clock in 24-hr format -->
+        <div class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs font-mono text-slate-300">
+          <i class="ph-bold ph-clock text-blue-400"></i>
+          <span id="liveClockDisplay">--:--:-- (24h)</span>
+        </div>
+
+        <!-- Audio mute toggle -->
+        <button id="soundToggleBtn" title="Toggle Sound Feedback" class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700/60 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors">
+          <i id="soundIcon" class="ph-bold ph-speaker-high text-base"></i>
+        </button>
+
+        <!-- Quick Reset/Sample Data -->
+        <button id="resetDataBtn" title="Reset / Reload Sample" class="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700/60 hover:bg-rose-900/40 hover:border-rose-700/60 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors">
+          <i class="ph-bold ph-arrow-counter-clockwise text-base"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- KPI STATS OVERVIEW -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <!-- Total Slots -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Slots</p>
+          <p class="text-2xl sm:text-3xl font-extrabold text-white mt-1" id="statTotalSlots">5</p>
+          <p class="text-[11px] text-slate-500 mt-0.5">Capacity limit (MAX 5)</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center text-xl">
+          <i class="ph-bold ph-grid-four"></i>
+        </div>
+      </div>
+
+      <!-- Available Slots -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Available</p>
+          <p class="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-1" id="statAvailableSlots">5</p>
+          <p class="text-[11px] text-emerald-500/80 mt-0.5 font-medium flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Ready for Entry
+          </p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl">
+          <i class="ph-bold ph-check-circle"></i>
+        </div>
+      </div>
+
+      <!-- Occupied Slots -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Occupied</p>
+          <p class="text-2xl sm:text-3xl font-extrabold text-amber-400 mt-1" id="statOccupiedSlots">0</p>
+          <p class="text-[11px] text-slate-500 mt-0.5" id="statOccupancyPct">0% occupancy</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center text-xl">
+          <i class="ph-bold ph-car"></i>
+        </div>
+      </div>
+
+      <!-- Total Revenue -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Revenue</p>
+          <p class="text-2xl sm:text-3xl font-extrabold text-teal-300 mt-1" id="statTotalRevenue">₹0</p>
+          <p class="text-[11px] text-slate-500 mt-0.5" id="statTotalExits">0 checkouts today</p>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center text-xl">
+          <i class="ph-bold ph-receipt"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTION CONTROLS & PARKING FULL BANNER -->
+    <section class="space-y-3">
+      <!-- Full Banner (Displays when slots are 100% full, matching C "Parking Full!") -->
+      <div id="parkingFullBanner" class="hidden bg-rose-500/15 border border-rose-500/40 rounded-xl p-3.5 sm:p-4 flex items-center justify-between text-rose-300 animate-fadeIn">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-rose-500/20 flex items-center justify-center text-rose-400 text-lg flex-shrink-0">
+            <i class="ph-bold ph-warning-octagon"></i>
+          </div>
+          <div>
+            <p class="font-bold text-sm sm:text-base text-rose-200">Parking Full!</p>
+            <p class="text-xs text-rose-300/80">All 5 slots are currently occupied. Vehicles must exit before new entry can be assigned.</p>
+          </div>
+        </div>
+        <button onclick="openExitModal()" class="px-3.5 py-1.5 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-xs font-semibold text-rose-200 border border-rose-500/40 transition">
+          Process Exit
+        </button>
+      </div>
+
+      <!-- Main Actions Bar -->
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-sm">
+        
+        <!-- Left: Quick Action Buttons matching C Program Choices -->
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+          <!-- Choice 2: Vehicle Entry -->
+          <button id="btnOpenEntry" onclick="openEntryModal()" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-sm shadow-md shadow-emerald-900/30 transition-all">
+            <i class="ph-bold ph-plus-circle text-lg"></i>
+            <span>Vehicle Entry</span>
+          </button>
+
+          <!-- Choice 3: Vehicle Exit -->
+          <button id="btnOpenExit" onclick="openExitModal()" class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 hover:text-white font-semibold text-sm border border-slate-700 transition-all">
+            <i class="ph-bold ph-sign-out text-lg text-amber-400"></i>
+            <span>Vehicle Exit</span>
+          </button>
+
+          <!-- Quick Sample Fill -->
+          <button onclick="fillSampleVehicle()" title="Quick fill sample vehicle" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-xs text-slate-300 border border-slate-700/60 transition">
+            <i class="ph-bold ph-lightning text-amber-400"></i>
+            <span>Demo Car</span>
+          </button>
+        </div>
+
+        <!-- Right: Search Filter for Vehicles / Slots -->
+        <div class="relative w-full md:w-72">
+          <i class="ph-bold ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Search vehicle number..." 
+            class="w-full pl-10 pr-4 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-xs sm:text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            oninput="handleSearch(this.value)"
+          />
+          <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            <i class="ph-bold ph-x-circle text-sm"></i>
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PARKING BAY GRID (SLOTS 1 TO 5) -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ph-garage text-emerald-400 text-lg"></i>
+          <h2 class="text-sm sm:text-base font-bold text-white tracking-wide uppercase">PARKING STATUS (SLOTS 1 - 5)</h2>
+        </div>
+        <span class="text-xs text-slate-400">Click any slot to manage</span>
+      </div>
+
+      <!-- Slots Grid Container -->
+      <div id="parkingSlotsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        <!-- Rendered dynamically via JavaScript to perfectly match struct Parking p[MAX] -->
+      </div>
+    </section>
+
+    <!-- RECENT TRANSACTIONS / BILLING AUDIT LOG -->
+    <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 sm:p-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-800">
+        <div>
+          <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+            <i class="ph-bold ph-receipt text-teal-400"></i>
+            <span>Recent Billing History</span>
+          </h3>
+          <p class="text-xs text-slate-400">Detailed records of exited vehicles &amp; charges</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="clearHistory()" class="px-2.5 py-1 text-xs rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition">
+            Clear Logs
+          </button>
+        </div>
+      </div>
+
+      <!-- Table / Empty State -->
+      <div class="overflow-x-auto mt-3">
+        <table class="w-full text-left text-xs sm:text-sm">
+          <thead>
+            <tr class="text-slate-400 border-b border-slate-800/80 font-medium">
+              <th class="py-2.5 px-3">Vehicle</th>
+              <th class="py-2.5 px-3">Slot</th>
+              <th class="py-2.5 px-3">Entry (24h)</th>
+              <th class="py-2.5 px-3">Exit (24h)</th>
+              <th class="py-2.5 px-3">Duration</th>
+              <th class="py-2.5 px-3 text-right">Amount</th>
+              <th class="py-2.5 px-3 text-center">Receipt</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody" class="divide-y divide-slate-800/40 text-slate-300">
+            <!-- Populated via JavaScript -->
+          </tbody>
+        </table>
+        
+        <div id="emptyHistoryNotice" class="text-center py-8 text-slate-500">
+          <i class="ph-bold ph-receipt text-3xl mb-1 text-slate-600 block"></i>
+          <p class="text-xs">No vehicles checked out yet. Bills will appear here.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- C CODE COMPARISON / TERMINAL LOG ACCORDION -->
+    <section class="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-4">
+      <details class="group cursor-pointer">
+        <summary class="flex items-center justify-between text-xs font-semibold text-slate-400 select-none">
+          <div class="flex items-center gap-2">
+            <i class="ph-bold ph-code text-indigo-400"></i>
+            <span>C Program Logic &amp; System Terminal Log</span>
+          </div>
+          <i class="ph-bold ph-caret-down group-open:rotate-180 transition-transform"></i>
+        </summary>
+        <div class="mt-4 pt-3 border-t border-slate-800 space-y-3 text-xs">
+          <div class="bg-black/60 rounded-xl p-3 border border-slate-800 font-mono text-emerald-400 space-y-1 max-h-48 overflow-y-auto" id="consoleLogContainer">
+            <p class="text-slate-500">// Smart Parking System v1.0 [Ready]</p>
+            <p class="text-slate-500">// MAX = 5, RATE = Rs. 20/hr</p>
+            <div id="liveConsoleLogs"></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+  </main>
+
+  <!-- MOBILE BOTTOM STICKY NAVIGATION BAR -->
+  <nav class="md:hidden sticky bottom-0 z-40 bg-slate-900/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 flex items-center justify-around">
+    <button onclick="scrollToTop()" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-white py-1">
+      <i class="ph-bold ph-grid-four text-lg"></i>
+      <span class="text-[10px]">Slots</span>
+    </button>
+    <button onclick="openEntryModal()" class="flex flex-col items-center gap-0.5 text-emerald-400 font-semibold py-1">
+      <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+        <i class="ph-bold ph-plus text-base"></i>
+      </div>
+      <span class="text-[10px]">Entry</span>
+    </button>
+    <button onclick="openExitModal()" class="flex flex-col items-center gap-0.5 text-amber-400 font-semibold py-1">
+      <div class="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+        <i class="ph-bold ph-sign-out text-base"></i>
+      </div>
+      <span class="text-[10px]">Exit</span>
+    </button>
+  </nav>
+
+  <!-- FOOTER -->
+  <footer class="mt-auto border-t border-slate-800/80 bg-slate-900/40 py-4 text-center text-xs text-slate-500">
+    <p>Smart Parking System &bull; Based on C Implementation (MAX: 5, RATE: ₹20/hr)</p>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: VEHICLE ENTRY (Choice 2) -->
+  <!-- ========================================================================= -->
+  <div id="entryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden animate-fadeIn">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scaleUp">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <i class="ph-bold ph-car-simple text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base">Vehicle Entry</h3>
+            <p class="text-xs text-slate-400">Allocate parking slot for new vehicle</p>
+          </div>
+        </div>
+        <button onclick="closeEntryModal()" class="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Form -->
+      <form id="entryForm" onsubmit="handleVehicleEntry(event)" class="p-5 space-y-4">
+        
+        <!-- Slot Selector (Auto selects next available as per C code) -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+            <span>Assign Parking Slot</span>
+            <span class="text-[11px] text-emerald-400 font-normal" id="entryAutoSlotNotice">Auto: First available</span>
+          </label>
+          <div class="relative">
+            <select id="entrySlotSelect" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Vehicle Number -->
+        <div>
+          <label for="entryVehicleNumber" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Vehicle Number (e.g. TN-01-AB-1234)
+          </label>
+          <div class="relative">
+            <i class="ph-bold ph-identification-card absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input 
+              type="text" 
+              id="entryVehicleNumber" 
+              maxlength="19" 
+              required 
+              placeholder="Enter Vehicle Plate No." 
+              class="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm font-mono tracking-wider uppercase text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+          <div class="flex gap-1.5 mt-2 overflow-x-auto pb-1 text-[11px]">
+            <span class="text-slate-400 self-center">Quick:</span>
+            <button type="button" onclick="setQuickPlate('TN-09-CD-4567')" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">TN-09-CD-4567</button>
+            <button type="button" onclick="setQuickPlate('KA-03-MG-8812')" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">KA-03-MG-8812</button>
+            <button type="button" onclick="setQuickPlate('MH-12-PQ-9001')" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">MH-12-PQ-9001</button>
+          </div>
+        </div>
+
+        <!-- Entry Time (24-Hour Integer format as per C code) -->
+        <div>
+          <label for="entryTimeInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+            <span>Entry Time (24-Hour format: 0 to 23)</span>
+            <button type="button" onclick="setCurrentHour('entryTimeInput')" class="text-[11px] text-emerald-400 hover:underline">
+              Use Current Hour
+            </button>
+          </label>
+          <div class="relative">
+            <i class="ph-bold ph-clock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input 
+              type="number" 
+              id="entryTimeInput" 
+              min="0" 
+              max="23" 
+              required 
+              placeholder="e.g. 9 for 09:00, 14 for 14:00" 
+              class="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Accepts hour (0-23) matching C program <code class="font-mono text-emerald-400">%d</code> scan</p>
+        </div>
+
+        <!-- Submit & Cancel -->
+        <div class="pt-2 flex items-center gap-3">
+          <button type="button" onclick="closeEntryModal()" class="w-1/3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition">
+            Cancel
+          </button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-sm shadow-md shadow-emerald-900/30 transition">
+            Confirm &amp; Allocate
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: VEHICLE EXIT & BILLING (Choice 3) -->
+  <!-- ========================================================================= -->
+  <div id="exitModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm hidden animate-fadeIn">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-scaleUp">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center">
+            <i class="ph-bold ph-sign-out text-lg"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base">Vehicle Exit &amp; Bill</h3>
+            <p class="text-xs text-slate-400">Calculate parking duration &amp; checkout</p>
+          </div>
+        </div>
+        <button onclick="closeExitModal()" class="w-8 h-8 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition">
+          <i class="ph-bold ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Form -->
+      <form id="exitForm" onsubmit="handleVehicleExit(event)" class="p-5 space-y-4">
+        
+        <!-- Slot Number Select -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+            Select Slot to Release (1 to 5)
+          </label>
+          <select id="exitSlotSelect" onchange="updateExitSlotDetails()" class="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+            <!-- Dynamically populated with occupied slots -->
+          </select>
+        </div>
+
+        <!-- Slot Details Card (Vehicle + Entry Time) -->
+        <div id="exitSlotSummaryCard" class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Assigned Vehicle:</span>
+            <span class="font-mono font-bold text-white uppercase text-sm" id="exitSummaryVehicle">--</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Entry Time (24h):</span>
+            <span class="font-mono text-emerald-400 font-semibold" id="exitSummaryEntryTime">--:00</span>
+          </div>
+        </div>
+
+        <!-- Exit Time (24-Hour Integer format as per C code) -->
+        <div>
+          <label for="exitTimeInput" class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+            <span>Exit Time (24-Hour format: 0 to 23)</span>
+            <button type="button" onclick="setCurrentHour('exitTimeInput'); calculateLiveExitEstimate();" class="text-[11px] text-amber-400 hover:underline">
+              Use Current Hour
+            </button>
+          </label>
+          <div class="relative">
+            <i class="ph-bold ph-clock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"></i>
+            <input 
+              type="number" 
+              id="exitTimeInput" 
+              min="0" 
+              max="23" 
+              required 
+              placeholder="e.g. 18 for 18:00" 
+              oninput="calculateLiveExitEstimate()"
+              class="w-full pl-10 pr-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+            />
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">If exit &lt; entry, +24h is applied automatically for overnight parking.</p>
+        </div>
+
+        <!-- Live Bill Calculation Preview -->
+        <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-xs space-y-1.5">
+          <div class="flex justify-between text-slate-300">
+            <span>Duration:</span>
+            <span class="font-bold text-white font-mono" id="exitPreviewDuration">0 Hours</span>
+          </div>
+          <div class="flex justify-between text-slate-300">
+            <span>Rate Per Hour:</span>
+            <span class="font-medium text-slate-300">Rs. 20</span>
+          </div>
+          <div class="flex justify-between text-amber-300 font-bold border-t border-amber-500/20 pt-1.5 text-sm">
+            <span>Total Payable:</span>
+            <span class="font-mono text-base" id="exitPreviewTotal">Rs. 0</span>
+          </div>
+        </div>
+
+        <!-- Submit & Cancel -->
+        <div class="pt-2 flex items-center gap-3">
+          <button type="button" onclick="closeExitModal()" class="w-1/3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition">
+            Cancel
+          </button>
+          <button type="submit" id="btnConfirmExit" class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-bold text-sm shadow-md shadow-amber-900/30 transition">
+            Release Slot &amp; Bill
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 3: PARKING BILL / RECEIPT (C Code Output Display) -->
+  <!-- ========================================================================= -->
+  <div id="billModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden animate-fadeIn">
+    <div class="bg-white text-slate-900 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-scaleUp print:shadow-none print:w-full print:max-w-full">
+      
+      <!-- Receipt Top Decorative Pattern -->
+      <div class="h-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600"></div>
+
+      <!-- Printable Receipt Body -->
+      <div class="p-6 space-y-5" id="printableReceipt">
+        
+        <!-- Header -->
+        <div class="text-center space-y-1 border-b border-dashed border-slate-300 pb-4">
+          <div class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 text-xl font-bold mb-1">
+            <i class="ph-bold ph-receipt"></i>
+          </div>
+          <h2 class="text-base font-extrabold tracking-wider text-slate-900 uppercase">PARKING BILL</h2>
+          <p class="text-xs text-slate-500 font-mono">SMART PARKING SYSTEM</p>
+          <p class="text-[11px] text-slate-400" id="receiptTimestamp">--</p>
+        </div>
+
+        <!-- Receipt Rows matching C Code printf format -->
+        <div class="space-y-2.5 text-xs font-mono">
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-slate-500">Slot Number:</span>
+            <span class="font-bold text-slate-900 text-sm" id="receiptSlot">--</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-slate-500">Vehicle Number:</span>
+            <span class="font-bold text-slate-900 uppercase" id="receiptVehicle">--</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-slate-500">Entry Time:</span>
+            <span class="text-slate-800" id="receiptEntry">--:00 (24h)</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-slate-500">Exit Time:</span>
+            <span class="text-slate-800" id="receiptExit">--:00 (24h)</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-slate-500">Parking Duration:</span>
+            <span class="font-bold text-slate-900" id="receiptDuration">-- Hours</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-slate-100">
+            <span class="text-slate-500">Rate Per Hour:</span>
+            <span class="text-slate-800">Rs. 20</span>
+          </div>
+
+          <!-- Total Highlight -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 mt-3 flex justify-between items-center">
+            <span class="font-bold text-slate-700 text-sm">Total Charge:</span>
+            <span class="text-xl font-extrabold text-emerald-700 font-mono" id="receiptTotal">Rs. 0</span>
+          </div>
+        </div>
+
+        <!-- Thermal Receipt Footer -->
+        <div class="text-center pt-2 text-[11px] text-slate-400 space-y-1">
+          <p>Slot Released Successfully!</p>
+          <p class="font-medium text-slate-600">Thank you for parking with us!</p>
+          <div class="pt-2 text-[9px] font-mono tracking-widest text-slate-300">
+            ||| | ||||| |||| | ||| |||||||
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Actions (Print & Close) -->
+      <div class="bg-slate-100 px-6 py-4 flex items-center gap-3 border-t border-slate-200 print:hidden">
+        <button onclick="window.print()" class="flex-1 inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition">
+          <i class="ph-bold ph-printer text-sm"></i>
+          <span>Print Receipt</span>
+        </button>
+        <button onclick="closeBillModal()" class="px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold text-xs transition">
+          Done
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-20 md:bottom-6 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- JS Logic Script -->
+  <script src="app.js"></script>
+</body>
+</html>
